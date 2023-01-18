@@ -1,0 +1,28 @@
+generate_build_number:
+    needs: [ aws, azure, gcp ]
+    name: Generate Build Number
+    runs-on: ubuntu-latest
+    if: ${{ always() && contains(join(needs.*.result, ','), 'success') }}
+    outputs:
+      build_number: ${{ steps.buildnumber.outputs.build_number }}
+    steps:
+    - name: Generate build number
+      id: buildnumber
+      uses: einaregilsson/build-number@v3 
+      with:
+        token: ${{secrets.github_token}}
+
+  zip_files:
+    needs: generate_build_number
+    name: Generate Zip File
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo ${{needs.generate_build_number.outputs.build_number}} > world.txt
+      - uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -r terraform-latest.zip aws azure gcp world.txt
+      - uses: actions/upload-artifact@v1
+        with:
+          name: terraform-latest
+          path: ${{ github.workspace }}/terraform-latest.zip
